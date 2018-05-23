@@ -27,7 +27,7 @@ Zadání
 
 3. Uprav program tak, aby __vozy ve vozovém parku měly různou kapacitu__. Kód v bodě 1. je jen ukázka, můžeš to udělat klidně i úplně jinak :)
 
-4. To byla jen rozcvička, teď už bez napovídání :) __Vytvoř (další) funkci__, které lze zadat požadovanou minimální kapacitu, a ta funkce __najde vůz__, který má tuto nebo vyšší __kapacitu__. Například: školní výlet si potřebuje objednat autobus pro 20 lidí a my chceme nějaký takový ve vozovém parku najít. Zavolej tuto funkci a vypiš její výsledek (návratovou hodnotu).
+4. To byla jen rozcvička, teď už bez napovídání :) __Vytvoř (další) funkci__, které lze zadat seznam vozů a požadovanou minimální kapacitu, a ta funkce __najde vůz__, který má tuto nebo vyšší __kapacitu__. Například: školní výlet si potřebuje objednat autobus pro 20 lidí a my chceme nějaký takový ve vozovém parku najít. Zavolej tuto funkci a vypiš její výsledek (návratovou hodnotu).
 
 5. Zřejmě by bylo fajn vozy nějak jednoznačně identifikovat - přidej jim __atribut `spz`__. Uprav program z předchozího bodu, aby vypisoval SPZ nalezeného vozu.
 
