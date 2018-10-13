@@ -3,20 +3,20 @@ from random import choice, random, randrange
 from math import sin
 
 
-WIDTH, HEIGHT = 640, 480
+# pár konstant na začátek - rozměry okna, žáby, aut
+
+WINDOW_WIDTH, WINDOW_HEIGHT = 640, 480
 FROG_WIDTH, FROG_HEIGHT = 32, 32
 CAR_WIDTH, CAR_HEIGHT = 32, 32
-FROG_STEP = 32
+MIN_GAP = 10 # minimální mezera mezi dvěma auty
+
 START_LINE_Y = 40
 FINISH_LINE_Y = 424
-LANES_Y = [72, 104, 136, 200, 232, 264, 328, 360, 392]
-LTR = 1
-RTL = -1
-LANES_DIRECTION = [LTR if n % 2 == 0 else RTL for n in range(len(LANES_Y))]
-LANES_SPEED = [2 + 3 * random() for _ in LANES_Y]
-CAR_COUNT_START = 20
-CAR_COUNT_MAX = 40
 
+LANES_Y = [72, 104, 136, 200, 232, 264, 328, 360, 392]
+
+
+# načteme obrázky
 
 img_background = pyglet.image.load('images/pozadi.bmp')
 #img_frog_left = pyglet.image.load('images/frog1.bmp')
@@ -24,147 +24,195 @@ img_background = pyglet.image.load('images/pozadi.bmp')
 img_frog_up = pyglet.image.load('images/frog3.bmp')
 #img_frog_down = pyglet.image.load('images/frog4.bmp')
 
-img_cars = [pyglet.image.load(f'images/{i}.bmp') for i in range(1, 13)]
+# v img_frog_up jsou celkem 4 "podobrázky", ze kterých se dá zřejmě složit
+# animace, ale to zatím nebudeme řešit a prostě vezmeme ten první podobrázek
+frog_img = img_frog_up.get_region(0, 0, FROG_WIDTH, FROG_HEIGHT)
 
-background_sprite = pyglet.sprite.Sprite(img_background)
 
 
-def within_bounds(value, lower_bound, upper_bound):
-    value = max(value, lower_bound)
-    value = min(value, upper_bound)
-    return value
+# Vysvětlivky:
+# RTL = right to left = zprava doleva
+# LTR = left to right = zleva doprava
+
+img_cars_rtl = [pyglet.image.load(f'images/{i}.bmp') for i in range(1, 13, 2)]
+img_cars_ltr = [pyglet.image.load(f'images/{i}.bmp') for i in range(2, 13, 2)]
+
+
+# připravíme si pomocnou funkci
+
+
+def sprites_overlap(sprite1, sprite2, gap=0):
+    '''
+    Vrátí True, pokud se dva sprite překrývají nebo je mezi nimi mezera menší než gap.
+    '''
+    if sprite1.y != sprite2.y:
+        # jsou v úplně jiných jízdních pruzích
+        return False
+    if sprite1.x + sprite1.width + gap <= sprite2.x:
+        # sprite1 je nalevo od sprite2, nepřekrývají se
+        return False
+    if sprite2.x + sprite2.width + gap <= sprite1.x:
+        # sprite2 je nalevo od sprite1, nepřekrývají se
+        return False
+    # sprites se překrývají
+    return True
+
+
+# a jdeme na business logiku :)
 
 
 class Frog:
 
     def __init__(self):
-        frog_img = img_frog_up.get_region(0, 0, FROG_WIDTH, FROG_HEIGHT)
         self.sprite = pyglet.sprite.Sprite(frog_img)
-        self.sprite.x = WIDTH // 2
+        # nastavíme výchozí pozici žáby:
+        self.sprite.x = WINDOW_WIDTH // 2
         self.sprite.y = START_LINE_Y
+        self.remaining_lives = 3
 
     def draw(self):
+        # voláno z handle_draw
         self.sprite.draw()
 
     def go_left(self):
-        self._go(-FROG_STEP, 0)
+        self.sprite.x = max(self.sprite.x - FROG_WIDTH, 0)
 
     def go_right(self):
-        self._go(FROG_STEP, 0)
+        self.sprite.x = min(self.sprite.x + FROG_WIDTH, WINDOW_WIDTH)
 
     def go_up(self):
         # souradnice Y=0 je spodni hrana, takze UP je pricitani Y
-        self._go(0, FROG_STEP)
+        self.sprite.y = min(self.sprite.y + FROG_HEIGHT, FINISH_LINE_Y)
+        if self.sprite.y == FINISH_LINE_Y:
+            print('Finish!!!')
 
     def go_down(self):
         # souradnice Y=0 je spodni hrana, takze DOWN je odcitani Y
-        self._go(0, -FROG_STEP)
+        self.sprite.y = max(self.sprite.y - FROG_HEIGHT, START_LINE_Y)
 
-    def _go(self, dx, dy):
-        self.sprite.x = within_bounds(self.sprite.x + dx, 0, WIDTH)
-        self.sprite.y = within_bounds(self.sprite.y + dy, START_LINE_Y, FINISH_LINE_Y)
-        print('New frog position:', self.sprite.x, self.sprite.y)
-        if self.sprite.y >= FINISH_LINE_Y:
-            print('Finish!')
+    def killed(self):
+        self.sprite.x = WINDOW_WIDTH // 2
+        self.sprite.y = START_LINE_Y
+        self.remaining_lives -= 1
 
-    def get_collision_box(self):
-        return (
-            self.sprite.x,
-            self.sprite.x + CAR_WIDTH,
-            self.sprite.y,
-            self.sprite.y + CAR_HEIGHT,
-        )
+    def finish_reached(self):
+        return self.sprite.y == FINISH_LINE_Y
+
 
 
 class Car:
 
-    def __init__(self, initial=False):
-        lane_number = randrange(len(LANES_Y))
-        self.direction = LANES_DIRECTION[lane_number]
-        self.speed = LANES_SPEED[lane_number]
-        self.sprite = pyglet.sprite.Sprite(choice(img_cars))
-        if initial:
-            self.sprite.x = randrange(WIDTH)
-        elif self.direction == LTR:
-            self.sprite.x = - CAR_WIDTH
-        elif self.direction == RTL:
-            self.sprite.x = WIDTH
-        self.sprite.y = LANES_Y[lane_number]
+    def __init__(self, x, y, speed):
+        self.speed = speed
+        self.sprite = pyglet.sprite.Sprite(self.get_random_image())
+        self.sprite.x = x
+        self.sprite.y = y
 
-    def get_collision_box(self):
-        return (
-            self.sprite.x,
-            self.sprite.x + CAR_WIDTH,
-            self.sprite.y,
-            self.sprite.y + CAR_HEIGHT,
-        )
+    def get_random_image(self):
+        if self.speed > 0:
+            # vybereme obrázek auta ve směru zleva doprava
+            return choice(img_cars_ltr)
+        else:
+            # vybereme obrázek auta ve směru zprava doleva
+            return choice(img_cars_rtl)
 
     def draw(self):
         self.sprite.draw()
 
     def tick(self, time_since_last_call):
-        self.sprite.x += self.speed * self.direction
+        self.sprite.x = self.sprite.x + self.speed * time_since_last_call
 
-    def off_grid(self):
-        return self.sprite.x + CAR_WIDTH < 0 or self.sprite.x > WIDTH
+        if self.sprite.x < - CAR_WIDTH:
+            # auto zmizelo vlevo - vrátíme ho zprava
+            self.sprite.x = WINDOW_WIDTH
+            # nastavíme jiný obrázek
+            self.sprite.image = self.get_random_image()
+
+        if self.sprite.x > WINDOW_WIDTH:
+            # auto zmizelo vpravo - vrátíme ho zleva
+            self.sprite.x = - CAR_WIDTH
+            # nastavíme jiný obrázek
+            self.sprite.image = self.get_random_image()
 
 
-def objects_overlap(a, b, x_gap=0):
-    a_x_min, a_x_max, a_y_min, a_y_max = a.get_collision_box()
-    b_x_min, b_x_max, b_y_min, b_y_max = b.get_collision_box()
-    assert a_x_min < a_x_max and a_y_min < a_y_max
-    assert b_x_min < b_x_max and b_y_min < b_y_max
-    if a_x_max + x_gap <= b_x_min or b_x_max + x_gap <= a_x_min:
-        # objekty jsou mimo horizontalne
-        return False
-    if a_y_max <= b_y_min or b_y_max <= a_y_min:
-        # objekty jsou mimo vertikalne
-        return False
-    # objekty se prekryvaji
-    return True
-
+# vytvoříme si objekty
 
 frog = Frog()
-
 cars = []
 
+for lane_number, lane_y in enumerate(LANES_Y):
+    lane_speed = 100 * random()
+    if lane_number % 2 == 1:
+        # liché pruhy pojedou zprava doleva, tj. proti směru osy X,
+        # takže prostě použijeme negativní rychlost :)
+        lane_speed = - lane_speed
 
-def try_add_new_car(initial):
-    new_car = Car(initial=initial)
-    if all(not objects_overlap(new_car, car, x_gap=10) for car in cars):
-        cars.append(new_car)
+    # určili jsme si informace o jízdním pruhu (směr a rychlost), teď do něj
+    # vložíme auta:
+
+    car_count = randrange(3, 10)
+    for car_number in range(car_count):
+        # vytvoříme nové auto, umístí se na náhodnou pozici ve směru X
+        new_car = Car(x=randrange(WINDOW_WIDTH), y=lane_y, speed=lane_speed)
+        # auto ale použijeme (přidáme do seznamu aut), jen když se nepřekrývá s jiným autem
+        new_car_ok = True
+        for already_present_car in cars:
+            if sprites_overlap(new_car.sprite, already_present_car.sprite, gap=MIN_GAP):
+                new_car_ok = False
+        if new_car_ok:
+            cars.append(new_car)
 
 
-# vyplnime nejaka auta
-while len(cars) < CAR_COUNT_START:
-    try_add_new_car(initial=True)
-
-
-
-window = pyglet.window.Window(width=WIDTH, height=HEIGHT)
+window = pyglet.window.Window(width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
 
 
 def tik(time_since_last_call):
-    global cars
     for car in cars:
         car.tick(time_since_last_call)
-    cars = [car for car in cars if not car.off_grid()]
-    if any(objects_overlap(frog, car) for car in cars):
-        print('Zaba byla zajeta!')
-        pyglet.app.exit()
-    if len(cars) < CAR_COUNT_MAX and random() * time_since_last_call < 3:
-        try_add_new_car(initial=False)
+    kill_frog = False
+    for car in cars:
+        if sprites_overlap(car.sprite, frog.sprite):
+            kill_frog = True
+    if kill_frog:
+        frog.killed()
 
 
-pyglet.clock.schedule_interval(tik, 1/30)
+pyglet.clock.schedule_interval(tik, 1/50)
+
+
+background_sprite = pyglet.sprite.Sprite(img_background)
+
+game_won_text = pyglet.text.Label('YOU WON!',
+                          font_name='Times New Roman',
+                          font_size=50,
+                          x=100, y=WINDOW_HEIGHT // 2)
+
+
+game_over_text = pyglet.text.Label('GAME OVER',
+                          font_name='Times New Roman',
+                          font_size=50,
+                          x=100, y=WINDOW_HEIGHT // 2)
+
+remaining_lives_text = pyglet.text.Label('X',
+                          font_name='Times New Roman',
+                          font_size=21,
+                          x=80, y=10)
 
 
 def handle_draw():
     window.clear()
     background_sprite.draw()
-    frog.draw()
+    if frog.remaining_lives > 0:
+        frog.draw()
+        remaining_lives_text.text = str(frog.remaining_lives)
+        remaining_lives_text.draw()
     for car in cars:
         car.draw()
+    if frog.remaining_lives <= 0:
+        game_over_text.draw()
+    elif frog.finish_reached():
+        game_won_text.draw()
+
 
 
 def handle_text(text):
