@@ -1,6 +1,8 @@
 Žába
 ====
 
+![screenshot](screenshot.png)
+
 
 Historický kontext
 ------------------
