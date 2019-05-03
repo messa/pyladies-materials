@@ -27,7 +27,5 @@ def test_secti_cislo_a_retezec_2():
     with pytest.raises(TypeError):
         secti(10, 'x')
 
-
-
 def test_tri():
     pass

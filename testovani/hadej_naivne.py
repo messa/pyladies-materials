@@ -1,3 +1,11 @@
+'''
+"Hádání čísel" - "naivní" přístup.
+Program vypadá jednoduše, ale špatně se testuje.
+
+Viz lépe testovatelnou verzi v hadej_upraveno.py.
+'''
+
+
 from random import randint
 
 def main(input=input, print=print):
@@ -17,3 +25,4 @@ def main(input=input, print=print):
 
 if __name__ == '__main__':
     main()
+    # https://stackoverflow.com/questions/419163/what-does-if-name-main-do

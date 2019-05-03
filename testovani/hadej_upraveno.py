@@ -1,3 +1,8 @@
+'''
+"Hádání čísel" - snadno testovatelhá verze.
+Testy jsou v test_hadej_upraveno.py.
+'''
+
 from random import randint
 
 def main():
@@ -11,6 +16,10 @@ def main():
             break
 
 def vyhodnot(tip, cislo):
+    '''
+    Vrací tuple (zprava, konec).
+    Hodnota konec=True znamená, že by se program měl ukončit.
+    '''
     tip = int(tip)
     konec = False
     if tip == cislo:
@@ -24,3 +33,4 @@ def vyhodnot(tip, cislo):
 
 if __name__ == '__main__':
     main()
+    # https://stackoverflow.com/questions/419163/what-does-if-name-main-do
