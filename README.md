@@ -8,6 +8,8 @@ https://github.com/VecnyOptimista/pyladies-2019-l
 
 https://github.com/tystar86/python_exercises
 
+https://github.com/Mintaka/pyladies_examples
+
 
 Další odkazy
 ------------
