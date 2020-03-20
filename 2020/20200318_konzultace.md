@@ -1,6 +1,38 @@
 Zápisky z on-line konzultace PyLadies 18. března 2020
 =====================================================
 
+if, elif
+--------
+
+```python
+if a:
+    ...
+elif b:
+    ...
+elif c:
+    ...
+else:
+    ...
+```
+
+Je to samé jako
+
+```python
+if a:
+    ...
+else:
+    if b:
+        ...
+    else:
+        if c:
+            ...
+        else:
+            ....
+```
+
+Jakmile "to" do nějaké větve "spadne", tak další elify už se ani nekontrolují a běh programu pokračuje až za koncem toho celého if-elif-else.
+
+
 Jednoduché vs. dvojité uvozovky
 -------------------------------
 
